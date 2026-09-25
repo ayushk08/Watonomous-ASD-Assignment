@@ -13,6 +13,8 @@ endif()
 # Search for dependencies required for building this package
 find_package(ament_cmake REQUIRED) # ROS2 build tool
 find_package(rclcpp REQUIRED)      # ROS2 C++ package
+find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)    # YOU ARE ONLY ADDING THIS TO THE FILE
  
 # Compiles source files into a library
@@ -28,6 +30,7 @@ target_include_directories(costmap_lib
 # Add ROS2 dependencies required by package
 ament_target_dependencies(costmap_lib 
   rclcpp
+  sensor_msgs
   std_msgs # YOU ARE ONLY ADDING THIS TO THE FILE
 )
  
@@ -35,6 +38,12 @@ ament_target_dependencies(costmap_lib
 add_executable(costmap_node src/costmap_node.cpp)
 # Link to the previously built library to access costmap classes and methods
 target_link_libraries(costmap_node costmap_lib)
+ament_target_dependencies(costmap_node
+  rclcpp
+  nav_msgs
+  sensor_msgs
+  std_msgs
+)
  
 # Copy executable to installation location
 install(TARGETS
