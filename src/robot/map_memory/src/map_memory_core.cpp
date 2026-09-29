@@ -1,3 +1,4 @@
+// Implements local-to-global grid transforms and linear occupancy-grid fusion.
 #include "map_memory_core.hpp"
 
 #include <cmath>
@@ -7,12 +8,14 @@
 namespace robot
 {
 
+// Saves the logger used to report malformed costmaps and incompatible grid geometry.
 MapMemoryCore::MapMemoryCore(const rclcpp::Logger& logger) 
   : logger_(logger) {}
 
 namespace
 {
 
+// Extracts planar heading from the quaternion so 2D grid points can be rotated.
 double quaternionYaw(const geometry_msgs::msg::Quaternion& quaternion) {
   return std::atan2(
       2.0 * (quaternion.w * quaternion.z + quaternion.x * quaternion.y),
@@ -21,6 +24,7 @@ double quaternionYaw(const geometry_msgs::msg::Quaternion& quaternion) {
 
 }  // namespace
 
+// Maps local costmap cell centers into the odom frame and preserves global values for unknown cells.
 bool MapMemoryCore::integrateCostmap(
     const nav_msgs::msg::OccupancyGrid& costmap,
     const double robot_x,
@@ -37,6 +41,7 @@ bool MapMemoryCore::integrateCostmap(
   }
 
   if (!has_global_map_) {
+    // Match the first costmap's 40 m extent and 0.1 m resolution; initialize cells as unknown.
     global_map_.header.frame_id = global_frame;
     global_map_.info = source_info;
     global_map_.info.origin.orientation.x = 0.0;
@@ -71,6 +76,7 @@ bool MapMemoryCore::integrateCostmap(
         continue;  // Unknown source cells do not erase previously mapped data.
       }
 
+      // The source grid is lidar-centered; this assumes the lidar origin coincides with the odometry pose.
       const double sensor_x = source_info.origin.position.x +
           source_cos * (column + 0.5) * resolution - source_sin * (row + 0.5) * resolution;
       const double sensor_y = source_info.origin.position.y +
@@ -101,6 +107,7 @@ bool MapMemoryCore::integrateCostmap(
   return true;
 }
 
+// Returns the stored global grid without copying it.
 const nav_msgs::msg::OccupancyGrid& MapMemoryCore::globalMap() const {
   return global_map_;
 }

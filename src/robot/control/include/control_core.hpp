@@ -1,3 +1,4 @@
+// ControlCore contains the Pure Pursuit math; ControlNode supplies current ROS path/odometry and publishes its Twist.
 #ifndef CONTROL_CORE_HPP_
 #define CONTROL_CORE_HPP_
 
@@ -16,7 +17,7 @@ namespace robot
 
 class ControlCore {
   public:
-    // Constructor, we pass in the node's RCLCPP logger to enable logging to terminal
+    // Keeps the node logger for the controller core's diagnostic output.
     ControlCore(const rclcpp::Logger& logger);
 
     // Selects a point on the path at or beyond the requested lookahead distance.

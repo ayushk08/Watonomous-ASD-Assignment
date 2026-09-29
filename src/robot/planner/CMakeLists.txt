@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
+# Builds the A* library and ROS node; message dependencies are needed by the map, goal, and path interfaces.
 project(planner)
 
 # Set compiler to use C++ 17 standard
@@ -13,8 +14,8 @@ endif()
 # Search for dependencies required for building this package
 find_package(ament_cmake REQUIRED) # ROS2 build tool
 find_package(rclcpp REQUIRED)      # ROS2 C++ package
-find_package(nav_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)      # OccupancyGrid, Odometry, and Path messages
+find_package(geometry_msgs REQUIRED) # Point and PoseStamped messages used by planning
 
 # Compiles source files into a library
 # A library is not executed, instead other executables can link

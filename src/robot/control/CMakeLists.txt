@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
+# Builds the Pure Pursuit math library and ROS control node with path/odometry/Twist message support.
 project(control)
 
 # Set compiler to use C++ 17 standard
@@ -13,8 +14,8 @@ endif()
 # Search for dependencies required for building this package
 find_package(ament_cmake REQUIRED) # ROS2 build tool
 find_package(rclcpp REQUIRED)      # ROS2 C++ package
-find_package(nav_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)      # Path and Odometry inputs
+find_package(geometry_msgs REQUIRED) # Twist output and point/pose calculations
 
 # Compiles source files into a library
 # A library is not executed, instead other executables can link

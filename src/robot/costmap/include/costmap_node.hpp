@@ -1,3 +1,4 @@
+// ROS wrapper: receives lidar scans, delegates grid construction to CostmapCore, and publishes them.
 #ifndef COSTMAP_NODE_HPP_
 #define COSTMAP_NODE_HPP_
  
@@ -13,13 +14,17 @@
  
 class CostmapNode : public rclcpp::Node {
   public:
+    // Initializes /lidar input and /costmap output around a CostmapCore instance.
     CostmapNode();
     
     // Place callback function here
+    // Publishes the warm-up string message on its separate 500 ms timer.
     void publishMessage();
+    // Converts the received scan into a local costmap, then publishes that grid.
     void laserScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg);
 
   private:
+    // Serializes CostmapCore's row/column grid into a ROS OccupancyGrid message.
     void publishCostmap(const std::string& frame_id);
 
     robot::CostmapCore costmap_;

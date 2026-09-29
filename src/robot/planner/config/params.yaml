@@ -1,3 +1,4 @@
+# A* occupancy costs, goal tolerance, and retry timeout are currently source constants.
 # planner_node:
 #   ros__parameters:
     

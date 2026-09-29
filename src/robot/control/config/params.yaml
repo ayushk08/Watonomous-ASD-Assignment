@@ -1,6 +1,6 @@
 control_node:
   ros__parameters:
-    lookahead_distance: 1.0
-    goal_tolerance: 0.1
-    linear_speed: 0.5
-    max_angular_speed: 1.5
+    lookahead_distance: 1.0 # meters ahead; balances smooth turns with responsiveness
+    goal_tolerance: 0.1 # meters from final waypoint before commanding a stop
+    linear_speed: 0.5 # meters per second; template default for forward motion
+    max_angular_speed: 1.5 # radians per second; limits commanded turning rate

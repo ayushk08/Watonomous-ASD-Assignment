@@ -1,9 +1,11 @@
+// Connects /costmap and /odom/filtered to the map fusion core and publishes /map at 1 Hz.
 #include "map_memory_node.hpp"
 
 #include <chrono>
 #include <cmath>
 #include <functional>
 
+// Creates both input subscriptions, the global map publisher, and a 1 s update timer.
 MapMemoryNode::MapMemoryNode() : Node("map_memory"), map_memory_(robot::MapMemoryCore(this->get_logger())) {
   costmap_sub_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>("/costmap", 10, std::bind(&MapMemoryNode::aggregateMaps, this, std::placeholders::_1));
   odom_filtered_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("/odom/filtered", 10, std::bind(&MapMemoryNode::trackRobotMovement, this, std::placeholders::_1));
@@ -13,10 +15,12 @@ MapMemoryNode::MapMemoryNode() : Node("map_memory"), map_memory_(robot::MapMemor
 }
 
 
+// Retains the most recent local grid; expensive fusion is deferred to the periodic timer.
 void MapMemoryNode::aggregateMaps(const nav_msgs::msg::OccupancyGrid::SharedPtr costmap) {
   latest_costmap_ = costmap;
 }
 
+// Updates the latest pose and its straight-line distance from the last fused pose.
 void MapMemoryNode::trackRobotMovement(const nav_msgs::msg::Odometry::SharedPtr odom) {
   current_x_ = odom->pose.pose.position.x;
   current_y_ = odom->pose.pose.position.y;
@@ -42,6 +46,7 @@ void MapMemoryNode::trackRobotMovement(const nav_msgs::msg::Odometry::SharedPtr 
 
 }
 
+// Runs at 1 Hz to limit work and republishes the accumulated map once initialized.
 void MapMemoryNode::updateMap() {
   tryAggregateLatestCostmap();
 
@@ -54,7 +59,9 @@ void MapMemoryNode::updateMap() {
   global_map_pub_->publish(global_map);
 }
 
+// Fuses once at startup, then only after 1.5 m of motion; resets the reference after success.
 void MapMemoryNode::tryAggregateLatestCostmap() {
+  // 1.5 m follows the assignment's implementation guidance and the chosen update interval.
   constexpr double kMapUpdateDistance = 1.5;
   if (!latest_costmap_ || !has_odom_pose_) {
     return;
@@ -76,6 +83,7 @@ void MapMemoryNode::tryAggregateLatestCostmap() {
   distance_since_last_update_ = 0.0;
 }
 
+// Starts ROS and processes map/odometry callbacks and the periodic map timer.
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);

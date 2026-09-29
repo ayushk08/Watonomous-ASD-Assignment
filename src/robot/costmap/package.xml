@@ -10,10 +10,11 @@
   <!--https://www.ros.org/reps/rep-0149.html#dependency-tags-->
   <buildtool_depend>ament_cmake</buildtool_depend>
   <depend>rclcpp</depend>
+  <!-- ROS message packages used for scan input and costmap output. -->
   <depend>nav_msgs</depend>
   <depend>sensor_msgs</depend>
  
-  <!--YOU ARE ADDING THIS MAINLY-->
+  <!-- Kept for the warm-up string topic in CostmapNode. -->
   <depend>std_msgs</depend>
  
   <test_depend>ament_lint_auto</test_depend>

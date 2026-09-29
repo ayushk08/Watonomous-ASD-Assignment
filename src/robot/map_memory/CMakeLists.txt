@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
+# Builds MapMemoryCore and its ROS node; nav_msgs supplies OccupancyGrid and Odometry types.
 project(map_memory)
 
 # Set compiler to use C++ 17 standard

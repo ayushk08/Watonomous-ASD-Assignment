@@ -1,3 +1,4 @@
+// A* implementation: converts world points to cells, searches safely, then restores world waypoints.
 #include "planner_core.hpp"
 
 #include <algorithm>
@@ -13,6 +14,7 @@
 namespace robot
 {
 
+// Stores the ROS logger used to report invalid maps and cases where no route exists.
 PlannerCore::PlannerCore(const rclcpp::Logger& logger) 
 : logger_(logger) {}
 
@@ -134,10 +136,13 @@ bool PlannerCore::findPath( const nav_msgs::msg::OccupancyGrid& map, const geome
     return true;
   }
 
+  // Eight-connected motion gives shorter diagonal routes while preventing corner cutting below.
   constexpr std::array<GridCell, 8> kNeighbors{{
       {1, 0}, {-1, 0}, {0, 1}, {0, -1},
       {1, 1}, {1, -1}, {-1, 1}, {-1, -1}}};
+  // With the 1 m linear inflation, 65 is about 0.35 m from an obstacle center; block that inner band.
   constexpr double kBlockedThreshold = 65.0; // minimum value for cell to be considered occupied
+  // Unknown cells remain traversable for this incomplete map, but cost twice a clear cell.
   constexpr double kUnknownCellPenalty = 2.0;
   const double infinity = std::numeric_limits<double>::infinity();
   std::vector<double> costs(cell_count, infinity);
@@ -187,6 +192,7 @@ bool PlannerCore::findPath( const nav_msgs::msg::OccupancyGrid& map, const geome
       }
 
       const int8_t occupancy = map.data[neighbor_index];
+      // The factor 4 makes inflated high-risk cells several times more expensive than clear cells.
       const double cell_penalty = occupancy < 0
           ? kUnknownCellPenalty
           : 1.0 + 4.0 * (static_cast<double>(occupancy) / kBlockedThreshold);
@@ -209,6 +215,7 @@ bool PlannerCore::findPath( const nav_msgs::msg::OccupancyGrid& map, const geome
     return false;
   }
 
+  // Follow parent links backward from the goal, then reverse to get start-to-goal order.
   std::vector<std::size_t> reversed_cells;
   for (std::size_t index = goal_index; index != start_index; index = parents[index]) {
     if (index == cell_count || parents[index] == cell_count) {
@@ -219,6 +226,7 @@ bool PlannerCore::findPath( const nav_msgs::msg::OccupancyGrid& map, const geome
   }
   std::reverse(reversed_cells.begin(), reversed_cells.end());
 
+  // Keep the exact start and goal positions, with cell centers as intermediate waypoints.
   path.push_back(start);
   for (const std::size_t index : reversed_cells) {
     const GridCell cell{

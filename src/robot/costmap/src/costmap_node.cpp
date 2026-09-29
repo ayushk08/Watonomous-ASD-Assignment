@@ -1,9 +1,11 @@
+// Connects /lidar to CostmapCore and publishes the resulting grid on /costmap.
 #include <chrono>
 #include <functional>
 #include <memory>
  
 #include "costmap_node.hpp"
  
+// Sets up the lidar subscription, costmap publisher, and the retained warm-up timer/publisher.
 CostmapNode::CostmapNode() : Node("costmap"), costmap_(robot::CostmapCore(this->get_logger())) {
   // Initialize the constructs and their parameters
   string_pub_ = this->create_publisher<std_msgs::msg::String>("/test_topic", 10);
@@ -14,7 +16,7 @@ CostmapNode::CostmapNode() : Node("costmap"), costmap_(robot::CostmapCore(this->
   costmap_pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("/costmap", 10);
 }
  
-// Define the timer to publish a message every 500ms
+// Keeps the repository's warm-up demonstration publisher active at 2 Hz.
 void CostmapNode::publishMessage() {
   auto message = std_msgs::msg::String();
   message.data = "Hello, ROS 2!";
@@ -22,6 +24,7 @@ void CostmapNode::publishMessage() {
   string_pub_->publish(message);
 }
 
+// Runs once per lidar message so the local grid reflects the latest scan.
 void CostmapNode::laserScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr msg) {
   costmap_.updateFromLaserScan(*msg);
   publishCostmap(msg->header.frame_id);
@@ -29,6 +32,7 @@ void CostmapNode::laserScanCallback(const sensor_msgs::msg::LaserScan::SharedPtr
               msg->ranges.size());
 }
 
+// Fills grid geometry and metadata, copies row-major cell values, and publishes /costmap.
 void CostmapNode::publishCostmap(const std::string& frame_id) {
   nav_msgs::msg::OccupancyGrid message;
   message.header.stamp = this->get_clock()->now();
@@ -56,6 +60,7 @@ void CostmapNode::publishCostmap(const std::string& frame_id) {
   costmap_pub_->publish(message);
 }
  
+// Starts ROS, spins the costmap node so callbacks run, then shuts ROS down cleanly.
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);

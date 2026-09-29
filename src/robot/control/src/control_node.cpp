@@ -1,10 +1,11 @@
+// ROS orchestration for Pure Pursuit: cache inputs, run a 10 Hz control loop, and publish /cmd_vel.
 #include "control_node.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <functional>
 
-// Creates the path and odometry subscribers and the velocity-command publisher.
+// Creates input/output topics, loads tunable controller values, and starts a 100 ms control timer.
 ControlNode::ControlNode(): Node("control"), control_(robot::ControlCore(this->get_logger())) {
   path_sub_ = this->create_subscription<nav_msgs::msg::Path>(
       "/path", 10, std::bind(&ControlNode::pathCallback, this, std::placeholders::_1));
@@ -12,8 +13,10 @@ ControlNode::ControlNode(): Node("control"), control_(robot::ControlCore(this->g
       "/odom/filtered", 10, std::bind(&ControlNode::odomCallback, this, std::placeholders::_1));
   cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
 
+  // Keep lookahead positive so target selection always has a meaningful distance.
   lookahead_distance_ = std::max(
       this->declare_parameter<double>("lookahead_distance", 1.0), 0.01);
+  // These defaults follow the wiki template; speed values are bounded to nonnegative limits.
   goal_tolerance_ = std::max(
       this->declare_parameter<double>("goal_tolerance", 0.1), 0.0);
   linear_speed_ = std::max(
@@ -25,17 +28,17 @@ ControlNode::ControlNode(): Node("control"), control_(robot::ControlCore(this->g
       std::chrono::milliseconds(100), std::bind(&ControlNode::controlLoop, this));
 }
 
-// Keeps the most recently received path for the controller to follow.
+// Stores the latest path; an empty path from the planner causes the next loop to command a stop.
 void ControlNode::pathCallback(const nav_msgs::msg::Path::SharedPtr msg) {
   current_path_ = msg;
 }
 
-// Keeps the latest robot odometry for the controller to use.
+// Stores current position and orientation used to compute the next steering command.
 void ControlNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
   current_odom_ = msg;
 }
 
-// Follows the active path and sends a stop command when control data is unavailable.
+// Stops on missing/invalid inputs or at the goal; otherwise selects a target and publishes Pure Pursuit velocity.
 void ControlNode::controlLoop() {
   const auto publishStop = [this]() {
     cmd_vel_pub_->publish(geometry_msgs::msg::Twist{});
@@ -75,6 +78,7 @@ void ControlNode::controlLoop() {
   cmd_vel_pub_->publish(command);
 }
 
+// Starts ROS and processes path/odometry callbacks alongside the 10 Hz control timer.
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);

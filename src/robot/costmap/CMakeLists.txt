@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
+# Builds the grid-processing core and ROS node; CMake dependencies mirror message headers used by each target.
 project(costmap)
  
 # Set compiler to use C++ 17 standard
@@ -13,9 +14,9 @@ endif()
 # Search for dependencies required for building this package
 find_package(ament_cmake REQUIRED) # ROS2 build tool
 find_package(rclcpp REQUIRED)      # ROS2 C++ package
-find_package(nav_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(std_msgs REQUIRED)    # YOU ARE ONLY ADDING THIS TO THE FILE
+find_package(nav_msgs REQUIRED)    # OccupancyGrid message published by the node
+find_package(sensor_msgs REQUIRED) # LaserScan input used by the core and node
+find_package(std_msgs REQUIRED)    # Retained warm-up String publisher
  
 # Compiles source files into a library
 # A library is not executed, instead other executables can link

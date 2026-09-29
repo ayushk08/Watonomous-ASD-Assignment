@@ -1,3 +1,4 @@
+// PlannerCore searches the occupancy grid with A* and returns a route in map-frame meters.
 #ifndef PLANNER_CORE_HPP_
 #define PLANNER_CORE_HPP_
 
@@ -13,8 +14,10 @@ namespace robot
 
 class PlannerCore {
   public:
+    // Retains a logger for invalid map and no-route diagnostics.
     explicit PlannerCore(const rclcpp::Logger& logger);
 
+    // Finds a minimum-cost route under the occupancy and unknown-cell costs defined in the core.
     bool findPath(
         const nav_msgs::msg::OccupancyGrid& map,
         const geometry_msgs::msg::Point& start,

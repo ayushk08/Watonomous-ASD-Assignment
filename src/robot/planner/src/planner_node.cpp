@@ -1,3 +1,4 @@
+// ROS orchestration for A*: data callbacks cache inputs, the timer checks state, and plans go to /path.
 #include "planner_node.hpp"
 
 #include <chrono>
@@ -7,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-// Creates the planner's three subscriptions, path publisher, and periodic timer.
+// Creates the three inputs, /path output, and a 500 ms timer for goal checks and replanning.
 PlannerNode::PlannerNode() : Node("planner"), planner_(robot::PlannerCore(this->get_logger())) {
   map_sub_ = this->create_subscription<nav_msgs::msg::OccupancyGrid>(
       "/map", 10, std::bind(&PlannerNode::mapCallback, this, std::placeholders::_1));
@@ -21,7 +22,7 @@ PlannerNode::PlannerNode() : Node("planner"), planner_(robot::PlannerCore(this->
       std::chrono::milliseconds(500), std::bind(&PlannerNode::timerCallback, this));
 }
 
-// Stores the latest map and requests a new plan when a goal is active.
+// Stores the latest map and requests a fresh route because occupancy changes can invalidate a path.
 void PlannerNode::mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
   current_map_ = *msg;
   map_received_ = true;
@@ -44,14 +45,16 @@ void PlannerNode::odomCallback(const nav_msgs::msg::Odometry::SharedPtr msg) {
   odom_received_ = true;
 }
 
-// Checks whether the goal was reached or planning should be repeated.
+// Returns to waiting-for-goal when close enough; otherwise requests a replan after 30 seconds.
 void PlannerNode::timerCallback() {
   if (!map_received_ || !goal_received_ || !odom_received_) {
     return;
   }
 
-  constexpr double kGoalTolerance = 0.25; // threshold for reaching the goal
-  constexpr auto kReplanTimeout = std::chrono::seconds(30); // timeout (seconds)
+  // 0.25 m is a practical arrival radius for a discretized 0.1 m map and noisy odometry.
+  constexpr double kGoalTolerance = 0.25;
+  // A 30 s window gives the robot time to make progress before retrying a stalled route.
+  constexpr auto kReplanTimeout = std::chrono::seconds(30);
   const auto& position = current_odom_.pose.pose.position;
   const double distance_to_goal = std::hypot(
       goal_.point.x - position.x, goal_.point.y - position.y);
@@ -81,7 +84,7 @@ void PlannerNode::timerCallback() {
   }
 }
 
-// Plans from the latest robot pose to the active goal and publishes the resulting path.
+// Plans in the map frame; rejects frame mismatches rather than applying coordinates incorrectly.
 void PlannerNode::planAndPublish() {
   const std::string& map_frame = current_map_.header.frame_id;
   if ((!goal_.header.frame_id.empty() && goal_.header.frame_id != map_frame) ||
@@ -129,11 +132,13 @@ void PlannerNode::planAndPublish() {
     path.poses.push_back(std::move(pose));
   }
 
+  // Each output pose uses the direction of the next segment as its planar orientation.
   path_pub_->publish(path);
   needs_replan_ = false;
   goal_received_at_ = this->now();
 }
 
+// Starts ROS, spins the planner so subscribers/timer execute, and shuts down on exit.
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);

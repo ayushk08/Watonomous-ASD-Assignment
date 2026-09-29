@@ -1,3 +1,4 @@
+// Pure Pursuit calculations separated from ROS subscriptions/timers so the node can orchestrate them.
 #include "control_core.hpp"
 
 #include <algorithm>
@@ -8,9 +9,11 @@
 namespace robot
 {
 
+// Retains the logger provided by ControlNode for any controller diagnostics.
 ControlCore::ControlCore(const rclcpp::Logger& logger) 
   : logger_(logger) {}
 
+// Finds the path waypoint nearest the robot, then selects a later point at the lookahead distance.
 std::optional<geometry_msgs::msg::PoseStamped> ControlCore::findLookaheadPoint(const nav_msgs::msg::Path& path,
     const geometry_msgs::msg::Point& robot_position,
     const double lookahead_distance) const {
@@ -18,7 +21,7 @@ std::optional<geometry_msgs::msg::PoseStamped> ControlCore::findLookaheadPoint(c
     return std::nullopt;
   }
 
-  // Start looking forward from the path point closest to the robot.
+  // Starting near the robot avoids steering toward old waypoints it has already passed.
   std::size_t closest_index = 0;
   double closest_distance = std::numeric_limits<double>::infinity();
   for (std::size_t i = 0; i < path.poses.size(); ++i) {
@@ -29,17 +32,18 @@ std::optional<geometry_msgs::msg::PoseStamped> ControlCore::findLookaheadPoint(c
     }
   }
 
-  // Choose the first later waypoint at least one lookahead distance away.
+  // The path samples are dense, so the first waypoint beyond 1 m approximates an exact lookahead point.
   for (std::size_t i = closest_index; i < path.poses.size(); ++i) {
     if (computeDistance(robot_position, path.poses[i].pose.position) >= lookahead_distance) {
       return path.poses[i];
     }
   }
 
-  // Near the end of a short path, steer toward its final waypoint.
+  // Near the end of a short path, use the goal waypoint even if it is closer than the lookahead distance.
   return path.poses.back();
 }
 
+// Converts the lookahead point into robot coordinates and applies Pure Pursuit curvature to Twist.
 geometry_msgs::msg::Twist ControlCore::computeVelocity(
     const geometry_msgs::msg::PoseStamped& target,
     const nav_msgs::msg::Odometry& odometry,
@@ -73,12 +77,14 @@ geometry_msgs::msg::Twist ControlCore::computeVelocity(
   return command;
 }
 
+// Measures planar distance; z is ignored because this controller drives on a 2D ground plane.
 double ControlCore::computeDistance(
     const geometry_msgs::msg::Point& a,
     const geometry_msgs::msg::Point& b) const {
   return std::hypot(a.x - b.x, a.y - b.y);
 }
 
+// Converts quaternion orientation into planar yaw for the robot-frame target calculation.
 double ControlCore::extractYaw(const geometry_msgs::msg::Quaternion& quaternion) const {
   return std::atan2(
       2.0 * (quaternion.w * quaternion.z + quaternion.x * quaternion.y),

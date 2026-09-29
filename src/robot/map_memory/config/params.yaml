@@ -1,3 +1,4 @@
+# Map update interval (1 s) and movement threshold (1.5 m) are currently set in MapMemoryNode.
 # map_memory_node:
 #   ros__parameters:
     
